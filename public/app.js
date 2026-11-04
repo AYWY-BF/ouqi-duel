@@ -42,7 +42,9 @@ let serverOffset = 0;
 let pollTimer = null;
 let pollGeneration = 0;
 let polling = false;
+let lastPollAt = 0;
 let interaction = false;
+let interactionTimer = null;
 let pendingRender = false;
 let reactionReady = false;
 let seenReactions = new Set();
@@ -141,6 +143,11 @@ async function api(path, options = {}) {
   if (options.body !== undefined) headers['Content-Type'] = 'application/json';
   if (options.auth !== false && token) headers['x-player-token'] = token;
 
+  // 没有超时的话，一个卡住的请求会把轮询循环永远挂起，界面就再也不刷新了。
+  const controller = new AbortController();
+  const timeoutMs = options.timeout || (options.method && options.method !== 'GET' ? 15000 : 10000);
+  const timer = window.setTimeout(() => controller.abort(), timeoutMs);
+
   let response;
   try {
     response = await fetch(path, {
@@ -148,11 +155,14 @@ async function api(path, options = {}) {
       headers,
       body: options.body === undefined ? undefined : JSON.stringify(options.body),
       cache: 'no-store',
+      signal: controller.signal,
     });
-  } catch {
-    const error = new Error('网络开小差了，检查一下连接？');
-    error.status = 0;
-    throw error;
+  } catch (error) {
+    window.clearTimeout(timer);
+    const wrapped = new Error(error?.name === 'AbortError' ? '网络有点慢，正在重试…' : '网络开小差了，检查一下连接？');
+    wrapped.status = 0;
+    wrapped.aborted = error?.name === 'AbortError';
+    throw wrapped;
   }
 
   let data = null;
@@ -160,6 +170,8 @@ async function api(path, options = {}) {
     data = await response.json();
   } catch {
     /* non-json error */
+  } finally {
+    window.clearTimeout(timer);
   }
 
   if (!response.ok) {
@@ -791,14 +803,17 @@ function startPolling() {
   stopPolling();
   const generation = ++pollGeneration;
   polling = true;
+  lastPollAt = Date.now();
   const loop = async () => {
     if (!polling || generation !== pollGeneration || !roomCode) return;
     try {
       const data = await api(`/api/rooms/${encodeURIComponent(roomCode)}`);
       if (!polling || generation !== pollGeneration) return;
+      lastPollAt = Date.now();
       applyState(data.state);
     } catch (error) {
       if (!polling || generation !== pollGeneration) return;
+      lastPollAt = Date.now();
       if (error.status === 401 || error.status === 404) {
         sessionLost(error.status);
         return;
@@ -807,13 +822,29 @@ function startPolling() {
         lastNetworkToast = Date.now();
         toast(error.message || '网络有点慢，正在重试…');
       }
+    } finally {
+      // 无论成功、失败还是被中断，都要把下一拍排上，否则一次异常就让轮询彻底停摆。
+      if (polling && generation === pollGeneration) {
+        const delay = document.hidden ? 2600 : state?.phase === 'finished' ? 2000 : 1000;
+        pollTimer = window.setTimeout(loop, delay);
+      }
     }
-    if (!polling || generation !== pollGeneration) return;
-    const delay = document.hidden ? 2600 : state?.phase === 'finished' ? 2000 : 1000;
-    pollTimer = window.setTimeout(loop, delay);
   };
   pollTimer = window.setTimeout(loop, 80);
 }
+
+// 兜底看门狗：万一某个分支漏掉了重新排期，或者浏览器把定时器冻住了，
+// 这里发现「太久没成功取过状态」就直接重启一次轮询，让画面自己追上来。
+window.setInterval(() => {
+  if (!polling || !roomCode || document.hidden) return;
+  if (Date.now() - lastPollAt < 12000) return;
+  lastPollAt = Date.now();
+  startPolling();
+}, 4000);
+
+window.addEventListener('online', () => {
+  if (polling && roomCode) startPolling();
+});
 
 function stopPolling() {
   polling = false;
@@ -967,21 +998,45 @@ async function joinRoom(code, form) {
   }
 }
 
+// 交互（开局 / 抽卡 / 再来一局）期间先压住重绘，免得把正在播的动画顶掉。
+// 但如果那个请求一直不回来，这个标志位会把界面永久钉死在旧画面上——
+// 所以给它配一个自动解锁：到点还没结束就放开封锁，强制按最新状态重绘一次。
+function beginInteraction() {
+  interaction = true;
+  pendingRender = false;
+  if (interactionTimer) window.clearTimeout(interactionTimer);
+  interactionTimer = window.setTimeout(() => {
+    interactionTimer = null;
+    if (!interaction) return;
+    interaction = false;
+    pendingRender = false;
+    if (state) render(true);
+  }, 9000);
+}
+
+function endInteraction() {
+  interaction = false;
+  if (interactionTimer) {
+    window.clearTimeout(interactionTimer);
+    interactionTimer = null;
+  }
+}
+
 async function startGame(button) {
   if (!state?.canStart || interaction) return;
-  interaction = true;
+  beginInteraction();
   if (button) {
     button.disabled = true;
     button.classList.add('is-loading');
   }
   try {
     const data = await api(`/api/rooms/${encodeURIComponent(roomCode)}/start`, { method: 'POST' });
-    interaction = false;
+    endInteraction();
     pendingRender = false;
     vibrate(18);
     applyState(data.state, { force: true });
   } catch (error) {
-    interaction = false;
+    endInteraction();
     pendingRender = false;
     toast(error.message);
     if (button) {
@@ -993,19 +1048,19 @@ async function startGame(button) {
 
 async function replayGame(button) {
   if (!state?.canReplay || interaction) return;
-  interaction = true;
+  beginInteraction();
   if (button) {
     button.disabled = true;
     button.classList.add('is-loading');
   }
   try {
     const data = await api(`/api/rooms/${encodeURIComponent(roomCode)}/again`, { method: 'POST' });
-    interaction = false;
+    endInteraction();
     pendingRender = false;
     vibrate([12, 30, 12]);
     applyState(data.state, { force: true });
   } catch (error) {
-    interaction = false;
+    endInteraction();
     pendingRender = false;
     toast(error.message);
     if (button) {
@@ -1017,7 +1072,7 @@ async function replayGame(button) {
 
 async function drawCard(index, button) {
   if (!state?.canDraw || interaction) return;
-  interaction = true;
+  beginInteraction();
   pendingRender = false;
   vibrate(10);
 
@@ -1042,7 +1097,7 @@ async function drawCard(index, button) {
       sleep(720),
     ]);
     note.remove();
-    interaction = false;
+    endInteraction();
     state = data.state;
     serverOffset = data.state.serverNow - Date.now();
     vibrate([14, 30, 42]);
@@ -1050,7 +1105,7 @@ async function drawCard(index, button) {
     window.setTimeout(() => burstFromResult(), 60);
   } catch (error) {
     note.remove();
-    interaction = false;
+    endInteraction();
     pendingRender = false;
     toast(error.status === 409 ? '这一轮已经开奖啦，看结果吧' : error.message);
     render(true);
@@ -1308,20 +1363,8 @@ document.addEventListener('keydown', (event) => {
 });
 
 document.addEventListener('visibilitychange', () => {
-  if (!document.hidden && polling) {
-    if (pollTimer) window.clearTimeout(pollTimer);
-    const generation = pollGeneration;
-    pollTimer = window.setTimeout(async () => {
-      if (!polling || generation !== pollGeneration) return;
-      try {
-        const data = await api(`/api/rooms/${encodeURIComponent(roomCode)}`);
-        if (!polling || generation !== pollGeneration) return;
-        applyState(data.state);
-      } catch {
-        /* the regular loop will handle it */
-      }
-    }, 120);
-  }
+  // 切回前台立刻补一次状态：手机后台时定时器会被节流甚至暂停，回来必须马上追上。
+  if (!document.hidden && polling && roomCode) startPolling();
 });
 
 window.setInterval(updateTimer, 200);
