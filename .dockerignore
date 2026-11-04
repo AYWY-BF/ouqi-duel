@@ -1,0 +1,8 @@
+node_modules
+tmp-*
+screenshots
+test
+*.log
+.git
+.gitignore
+README.md

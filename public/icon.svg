@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="欧气对决">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#24154f"/>
+      <stop offset=".55" stop-color="#120a2e"/>
+      <stop offset="1" stop-color="#080417"/>
+    </linearGradient>
+    <linearGradient id="gold" x1=".1" y1="0" x2=".9" y2="1">
+      <stop offset="0" stop-color="#fff2b0"/>
+      <stop offset=".42" stop-color="#ffd166"/>
+      <stop offset="1" stop-color="#ff9f43"/>
+    </linearGradient>
+    <linearGradient id="petal" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffe89a"/>
+      <stop offset="1" stop-color="#f7a928"/>
+    </linearGradient>
+    <filter id="glow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="18" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <rect width="512" height="512" rx="124" fill="url(#bg)"/>
+  <circle cx="256" cy="256" r="178" fill="none" stroke="#ffd166" stroke-opacity=".16" stroke-width="2"/>
+  <circle cx="256" cy="256" r="146" fill="#ffd166" fill-opacity=".045"/>
+  <g filter="url(#glow)">
+    <path d="M256 252c-18-58-82-88-119-51-37 37-7 101 51 119-58 18-88 82-51 119 37 37 101 7 119-51 18 58 82 88 119 51 37-37 7-101-51-119 58-18 88-82 51-119-37-37-101-7-119 51Z" fill="url(#petal)"/>
+    <path d="M256 252c-18-58-82-88-119-51-37 37-7 101 51 119-58 18-88 82-51 119 37 37 101 7 119-51 18 58 82 88 119 51 37-37 7-101-51-119 58-18 88-82 51-119-37-37-101-7-119 51Z" fill="none" stroke="#fff4c2" stroke-opacity=".55" stroke-width="3"/>
+  </g>
+  <circle cx="256" cy="256" r="31" fill="#120a2e"/>
+  <circle cx="256" cy="256" r="21" fill="url(#gold)"/>
+  <g fill="url(#gold)">
+    <path d="M402 118l8 22 22 8-22 8-8 22-8-22-22-8 22-8Z" opacity=".95"/>
+    <path d="M108 350l6 16 16 6-16 6-6 16-6-16-16-6 16-6Z" opacity=".8"/>
+    <circle cx="397" cy="348" r="6" opacity=".8"/>
+    <circle cx="114" cy="158" r="4" opacity=".65"/>
+  </g>
+</svg>

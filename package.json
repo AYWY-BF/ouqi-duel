@@ -1,0 +1,16 @@
+{
+  "name": "ouqi-duel",
+  "version": "1.0.0",
+  "private": true,
+  "description": "欧气对决：群聊里点开就能玩的 3 回合运气对战小游戏",
+  "type": "module",
+  "scripts": {
+    "start": "node server.mjs",
+    "dev": "node --watch server.mjs",
+    "test": "node test/game.test.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT"
+}
