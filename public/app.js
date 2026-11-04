@@ -378,17 +378,28 @@ function lobbyTemplate(currentState) {
     `);
   }
 
-  const startBlock = host
+  const amHost = Boolean(currentState.hostId && currentState.hostId === currentState.meId);
+  const short = Math.max(0, currentState.minPlayers - count);
+
+  const startBlock = amHost
     ? `
       <button class="btn btn-primary btn-block" data-action="start" ${currentState.canStart ? '' : 'disabled'}>
-        ${count < currentState.minPlayers ? `还差 ${currentState.minPlayers - count} 位玩家` : '开始对决 · 3 回合'}
+        ${short > 0 ? `还差 ${short} 位玩家` : '开始对决 · 3 回合'}
         <span class="btn-arrow">→</span>
       </button>
-      <p class="cta-note">${count < currentState.minPlayers ? '喊上一位朋友，马上就能开' : '抽卡顺序不影响结果，全看欧气'}</p>
+      <p class="cta-note">${
+        short > 0
+          ? `你是房主 · 凑齐 ${currentState.minPlayers} 人后由你点击开局`
+          : '抽卡顺序不影响结果，全看欧气'
+      }</p>
     `
     : `
-      <div class="waiting-line"><span class="pulse-dot"></span> 等房主开始，先搓搓手</div>
-      <p class="cta-note">房主点击开始后，3 回合自动进行</p>
+      <button class="btn btn-primary btn-block" disabled>
+        ${short > 0 ? `还差 ${short} 位玩家` : '等待房主开始'}
+      </button>
+      <p class="cta-note cta-note--host">
+        只有房主${host ? `（${esc(host.name)}）` : ''}能开始对决 · 房主点一下，3 回合自动进行
+      </p>
     `;
 
   return `
@@ -520,6 +531,9 @@ function gameTemplate(currentState) {
           </div>
         </div>
         <p class="round-sub">本轮欧气值 <b>×${currentState.multiplier}</b> · 超时会自动帮你抽</p>
+        <p class="auto-hint is-off" id="auto-hint">
+          <span class="auto-hint-dot"></span>只剩 <b>10</b> 秒，不选将随机代抽
+        </p>
 
         <div class="draw-zone">
           ${me.result ? resultTemplate(me.result) : cardsTemplate(currentState)}
@@ -779,15 +793,29 @@ function updateTimer() {
   const now = Date.now() + serverOffset;
 
   if (state.phase === 'round' && state.deadline) {
-    const timer = document.getElementById('round-timer');
-    if (!timer) return;
     const remainingMs = Math.max(0, state.deadline - now);
     const seconds = Math.ceil(remainingMs / 1000);
-    const number = timer.querySelector('[data-timer-number]');
-    if (number) number.textContent = seconds;
-    const percent = clamp((remainingMs / Math.max(1000, state.roundMs)) * 100, 0, 100);
-    timer.style.setProperty('--p', percent.toFixed(2));
-    timer.classList.toggle('is-urgent', remainingMs > 0 && remainingMs <= 5000);
+
+    const timer = document.getElementById('round-timer');
+    if (timer) {
+      const number = timer.querySelector('[data-timer-number]');
+      if (number) number.textContent = seconds;
+      const percent = clamp((remainingMs / Math.max(1000, state.roundMs)) * 100, 0, 100);
+      timer.style.setProperty('--p', percent.toFixed(2));
+      timer.classList.toggle('is-urgent', remainingMs > 0 && remainingMs <= 5000);
+    }
+
+    // 快结束时提醒还没抽的人：不点就随机代抽
+    const hint = document.getElementById('auto-hint');
+    if (hint) {
+      const show = !state.me?.result && remainingMs > 0 && remainingMs <= 10000;
+      hint.classList.toggle('is-off', !show);
+      if (show) {
+        const label = hint.querySelector('b');
+        const text = String(Math.max(1, seconds));
+        if (label && label.textContent !== text) label.textContent = text;
+      }
+    }
   }
 
   if (state.phase === 'reveal' && state.revealUntil) {

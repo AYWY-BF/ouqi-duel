@@ -1013,6 +1013,12 @@ img {
   text-align: center;
 }
 
+.cta-note--host {
+  color: var(--gold);
+  font-weight: 600;
+  opacity: 0.9;
+}
+
 .waiting-line {
   display: flex;
   align-items: center;
@@ -1218,6 +1224,57 @@ img {
 .round-sub b {
   color: var(--gold);
   font-weight: 800;
+}
+
+/* 倒计时尾声：提醒还没做选择的人会被随机代抽 */
+.auto-hint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  margin: 8px 0 0;
+  padding: 6px 10px;
+  border: 1px solid rgba(255, 122, 144, 0.3);
+  border-radius: 10px;
+  background: rgba(255, 122, 144, 0.09);
+  color: var(--danger);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  animation: auto-hint-in 0.24s ease-out;
+}
+
+.auto-hint.is-off {
+  display: none;
+}
+
+.auto-hint b {
+  color: var(--danger);
+  font-size: 13px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+
+.auto-hint-dot {
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--danger);
+  box-shadow: 0 0 8px var(--danger);
+  animation: pulse 1s ease-in-out infinite;
+}
+
+@keyframes auto-hint-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 .draw-zone {
