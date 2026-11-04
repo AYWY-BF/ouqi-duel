@@ -4,6 +4,29 @@ const modalRoot = document.getElementById('modal-root');
 const toastRoot = document.getElementById('toast-root');
 
 const params = new URLSearchParams(window.location.search);
+const SHARE_PARAM = 'sharecode';
+const SHARE_STORAGE = 'luck:sharecode';
+
+// 托管平台会给访问链接加一个访问码（?sharecode=xxx），缺了它新访客会被挡在门外。
+// 记下它，拼邀请链接和切换地址时都带上，保证群里的人点开就能进。
+function readShareCode() {
+  const fromUrl = params.get(SHARE_PARAM) || params.get('shareCode') || '';
+  if (fromUrl) {
+    try {
+      localStorage.setItem(SHARE_STORAGE, fromUrl);
+    } catch {}
+    return fromUrl;
+  }
+  return readStorage(SHARE_STORAGE) || '';
+}
+
+const shareCode = readShareCode();
+
+function withShareCode(url) {
+  if (!shareCode) return url;
+  return `${url}${url.includes('?') ? '&' : '?'}${SHARE_PARAM}=${encodeURIComponent(shareCode)}`;
+}
+
 const REACTIONS = ['😂', '🍋', '🔥', '👑', '😭', '🤝'];
 const ROUND_THEMES = [
   { kicker: 'ROUND 01 · 热身局', line1: '随手一抽，', line2: '试试今天的手气' },
@@ -79,7 +102,7 @@ function codeFromLocation() {
 }
 
 function roomUrl() {
-  return `${window.location.origin}/r/${roomCode}`;
+  return withShareCode(`${window.location.origin}/r/${roomCode}`);
 }
 
 function clamp(value, min, max) {
@@ -861,7 +884,7 @@ function enterRoom(code, playerToken, nextState) {
   token = playerToken;
   nickname = nextState.me?.name || nickname;
   saveSession(code, playerToken);
-  window.history.replaceState({}, '', `/r/${code}`);
+  window.history.replaceState({}, '', withShareCode(`/r/${code}`));
   state = null;
   reactionReady = false;
   seenReactions = new Set();
@@ -882,7 +905,7 @@ function sessionLost(status) {
   state = null;
   token = '';
   roomCode = '';
-  window.history.replaceState({}, '', '/');
+  window.history.replaceState({}, '', withShareCode('/'));
   const message = status === 404
     ? '这个房间已经过期了，开一间新的吧'
     : '身份失效了，重新加入一次就好';
@@ -1166,7 +1189,7 @@ async function leaveRoom(button) {
   roomCode = '';
   token = '';
   state = null;
-  window.history.replaceState({}, '', '/');
+  window.history.replaceState({}, '', withShareCode('/'));
   renderAuth('create');
   toast('已离开房间');
 }
@@ -1261,7 +1284,7 @@ document.addEventListener('click', (event) => {
   } else if (action === 'confirm-leave') {
     leaveRoom(target);
   } else if (action === 'switch-create') {
-    window.history.replaceState({}, '', '/');
+    window.history.replaceState({}, '', withShareCode('/'));
     renderAuth('create');
   } else if (action === 'copy-room') {
     copyRoomLink();
