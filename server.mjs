@@ -14,6 +14,7 @@ const REVEAL_MS = Math.max(1000, Number(process.env.REVEAL_MS || 5200));
 const ROOM_TTL = 6 * 60 * 60 * 1000;
 const MAX_PLAYERS = 12;
 const MIN_PLAYERS = 2;
+const MAX_ROOMS = 100;
 
 const rooms = new Map();
 const rateBuckets = new Map();
@@ -116,6 +117,9 @@ function createPlayer(name) {
 }
 
 function createRoom(hostName) {
+  if (rooms.size >= MAX_ROOMS) {
+    throw new ApiError(503, `当前房间太多（上限 ${MAX_ROOMS} 间），稍等几分钟再来`);
+  }
   const room = {
     code: randomCode(),
     hostId: '',

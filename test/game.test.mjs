@@ -203,3 +203,32 @@ test('完整三回合对局：隐藏结果、开奖、结算、再来一局与�
   const autoPlayer = autoReveal.roundResults.find((row) => row.id === guest.playerId);
   assert.equal(autoPlayer.result.auto, true, '超时玩家应被自动代抽');
 });
+
+test('房间总数到达上限后拒绝新建，避免内存被刷爆', async () => {
+  // 建房限流是 12 次/分钟/IP；本地直连 127.x 时服务端信任 X-Forwarded-For，
+  // 每个请求换一个转发 IP 即可绕过限流，专注验证 MAX_ROOMS 本身。
+  // 不假设初始房间数（前面的测试可能已建房），一直建到被拒绝为止。
+  let created = 0;
+  let rejected = false;
+  for (let index = 0; index < 200; index += 1) {
+    const response = await fetch(`${BASE}/api/rooms`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-forwarded-for': `10.77.${Math.floor(index / 250)}.${(index % 250) + 1}`,
+      },
+      body: JSON.stringify({ name: `占位${index}` }),
+    });
+    if (response.status === 503) {
+      rejected = true;
+      const data = await response.json();
+      assert.match(data.error, /上限 100 间/);
+      break;
+    }
+    assert.equal(response.status, 201, `第 ${created + 1} 个应创建成功`);
+    await response.json();
+    created += 1;
+  }
+  assert.equal(rejected, true, '应在 100 间上限处被拒绝');
+  assert.ok(created >= 99 && created <= 100, `拒绝前应已建 99~100 间，实际 ${created}`);
+});
