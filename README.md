@@ -91,20 +91,6 @@ npm test
 
 另有 `test/render.test.mjs` 用最小 DOM 环境加载前端脚本，校验大厅权限提示与代抽提醒的渲染分支。
 
-## 拍演示视频
-
-一个人录屏也能拍出多人对局：先开好房间，再让机器人进来陪你抽卡。
-
-```bash
-# 节奏紧凑一点：每回合 15 秒、开奖 4 秒
-ROUND_MS=15000 REVEAL_MS=4000 npm start
-
-# 另开一个终端，塞 4 个机器人进房间
-node tools/demo-bots.mjs --room=房间码 --bots=4
-```
-
-机器人只负责抽卡，不会点开局，节奏由你控制。完整分镜、字幕文案、16:9 画中画排版参数见 **[VIDEO.md](VIDEO.md)**。
-
 ## 目录
 
 ```text
@@ -120,12 +106,9 @@ public/
   manifest.webmanifest  PWA 清单
 test/game.test.mjs      联机流程集成测试
 test/render.test.mjs    前端渲染回归测试
-tools/demo-bots.mjs     演示机器人：给房间塞会自动抽卡的"路人"，方便录屏
 Dockerfile              容器部署
 render.yaml             Render 部署配置
 DEPLOY.md               公网部署与排错指南
-VIDEO.md                演示视频拍摄脚本与字幕说明
-video-subtitles.srt     演示视频大字幕
 ```
 
 ## 实现说明
